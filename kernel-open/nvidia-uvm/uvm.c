@@ -1260,9 +1260,12 @@ error:
 
     return ret;
 }
+extern void printk_fault_address(unsigned long long add);
 
 static int __init uvm_init_entry(void)
 {
+    printk(KERN_INFO "NVIDIA Unified Memory for Linux initialized.\n");
+    printk_fault_address(0x000721);
    UVM_ENTRY_RET(uvm_init());
 }
 
