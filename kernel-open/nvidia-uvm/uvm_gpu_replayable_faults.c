@@ -63,7 +63,6 @@ typedef enum
 } hw_fault_buffer_flush_mode_t;
 
 #define UVM_PERF_REENABLE_PREFETCH_FAULTS_LAPSE_MSEC_DEFAULT 1000
-
 // Lapse of time in milliseconds after which prefetch faults can be re-enabled.
 // 0 means it is never disabled
 static unsigned uvm_perf_reenable_prefetch_faults_lapse_msec = UVM_PERF_REENABLE_PREFETCH_FAULTS_LAPSE_MSEC_DEFAULT;
@@ -782,6 +781,7 @@ static bool fetch_fault_buffer_try_merge_entry(uvm_fault_buffer_entry_t *current
 
     return false;
 }
+//extern void printk_fault_address(unsigned long long add);
 
 // Fetch entries from the fault buffer, decode them and store them in the batch
 // context. We implement the fetch modes described above.
@@ -874,10 +874,14 @@ static NV_STATUS fetch_fault_buffer_entries(uvm_gpu_t *gpu,
         if (status != NV_OK)
             goto done;
 
+        //pr_info("BEFORE ALIGN:%llx",current_entry->fault_address)
+
         // The GPU aligns the fault addresses to 4k, but all of our tracking is
         // done in PAGE_SIZE chunks which might be larger.
         current_entry->fault_address = UVM_PAGE_ALIGN_DOWN(current_entry->fault_address);
 
+        //printk_fault_address(current_entry->fault_address);
+        
         // Make sure that all fields in the entry are properly initialized
         current_entry->is_fatal = (current_entry->fault_type >= UVM_FAULT_TYPE_FATAL);
 

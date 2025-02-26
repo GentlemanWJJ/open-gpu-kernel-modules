@@ -1116,6 +1116,7 @@ static void uvm_chardev_exit(void)
     cdev_del(&g_uvm_cdev);
     unregister_chrdev_region(g_uvm_base_dev, NVIDIA_UVM_NUM_MINOR_DEVICES);
 }
+//extern void printk_fault_address(unsigned long long add);
 
 static int uvm_init(void)
 {
@@ -1143,8 +1144,9 @@ static int uvm_init(void)
         UVM_ERR_PRINT("uvm_tools_init() failed: %d\n", ret);
         goto error;
     }
-
-    pr_info("Loaded the UVM driver, major device number %d.\n", MAJOR(g_uvm_base_dev));
+    UVM_INFO_PRINT("TEST LOAD.\n");
+    printk(KERN_INFO "PK:TEST.\n");
+    pr_info("PR:Loaded the UVM driver, major device number %d.\n", MAJOR(g_uvm_base_dev));
 
     if (uvm_enable_builtin_tests)
         pr_info("Built-in UVM tests are enabled. This is a security risk.\n");
@@ -1185,8 +1187,9 @@ static void uvm_exit(void)
     uvm_global_exit();
 
     uvm_test_unload_state_exit();
-
-    pr_info("Unloaded the UVM driver.\n");
+    UVM_INFO_PRINT("TEST UNLOAD.\n");
+    pr_info("PR:Unloaded the UVM driver.\n");
+    //printk_fault_address(0x12345678);
 }
 
 static void __exit uvm_exit_entry(void)
