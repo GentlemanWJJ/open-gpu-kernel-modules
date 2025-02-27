@@ -1234,10 +1234,8 @@ static int uvm_init(void)
         goto error;
     }
     
-    UVM_INFO_PRINT("UP:loaded the UVM driver.\n");
-    printk(KERN_INFO "PK:NVIDIA Unified Memory for Linux LOAD.\n");
+
     printk_fault_address(0x12345678);
-    pr_info("TEST.\n");
     pr_info("PR:Loaded the UVM driver, major device number %d.\n", MAJOR(g_uvm_base_dev));
 
     if (uvm_enable_builtin_tests)
@@ -1282,9 +1280,6 @@ static void uvm_exit(void)
     uvm_test_unload_state_exit();
 
     pr_info("PR:Unloaded the UVM driver.\n");
-    printk(KERN_INFO "PK:Unloaded the UVM driver.\n");
-    UVM_INFO_PRINT("UP:Unloaded the UVM driver.\n");
-    printk_fault_address(0x12345678);
 }
 
 static void __exit uvm_exit_entry(void)
