@@ -1012,6 +1012,9 @@ static NV_STATUS migrate_pageable_vma(struct vm_area_struct *vma,
 
 static NV_STATUS migrate_pageable(migrate_vma_state_t *state)
 {
+
+    pr_info("Execute migrate_pageable\n");
+
     uvm_migrate_args_t *uvm_migrate_args = state->uvm_migrate_args;
     uvm_va_space_t *va_space = uvm_migrate_args->va_space;
     const unsigned long length = uvm_migrate_args->length;
@@ -1103,6 +1106,8 @@ static NV_STATUS migrate_pageable(migrate_vma_state_t *state)
 
 NV_STATUS uvm_migrate_pageable(uvm_migrate_args_t *uvm_migrate_args)
 {
+    pr_info("Execute uvm_migrate_pageable\n");
+
     migrate_vma_state_t *state = NULL;
     NV_STATUS status;
     uvm_processor_id_t dst_id = uvm_migrate_args->dst_id;
@@ -1138,6 +1143,8 @@ NV_STATUS uvm_migrate_pageable(uvm_migrate_args_t *uvm_migrate_args)
 
 NV_STATUS uvm_migrate_pageable_init(void)
 {
+    pr_info("Execute uvm_migrate_pageable_init\n");
+
     g_uvm_migrate_vma_state_cache = NV_KMEM_CACHE_CREATE("migrate_vma_state_t", migrate_vma_state_t);
     if (!g_uvm_migrate_vma_state_cache)
         return NV_ERR_NO_MEMORY;

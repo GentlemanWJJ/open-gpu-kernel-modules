@@ -139,6 +139,8 @@ static void fault_buffer_reinit_replayable_faults(uvm_parent_gpu_t *parent_gpu)
 // calling fault_buffer_deinit_replayable_faults on failure.
 static NV_STATUS fault_buffer_init_replayable_faults(uvm_parent_gpu_t *parent_gpu)
 {
+    pr_info("Execute fault_buffer_init_replayable_faults\n");
+    
     NV_STATUS status = NV_OK;
     uvm_replayable_fault_buffer_info_t *replayable_faults = &parent_gpu->fault_buffer_info.replayable;
     uvm_fault_service_batch_context_t *batch_context = &replayable_faults->batch_service_context;
@@ -224,6 +226,7 @@ static void fault_buffer_deinit_replayable_faults(uvm_parent_gpu_t *parent_gpu)
 {
     uvm_replayable_fault_buffer_info_t *replayable_faults = &parent_gpu->fault_buffer_info.replayable;
     uvm_fault_service_batch_context_t *batch_context = &replayable_faults->batch_service_context;
+    pr_info("Execute fault_buffer_deinit_replayable_faults\n");
 
     if (batch_context->fault_cache) {
         UVM_ASSERT(uvm_tracker_is_empty(&replayable_faults->replay_tracker));
@@ -235,6 +238,11 @@ static void fault_buffer_deinit_replayable_faults(uvm_parent_gpu_t *parent_gpu)
         if (parent_gpu->prefetch_fault_supported && !parent_gpu->fault_buffer_info.prefetch_faults_enabled)
             parent_gpu->arch_hal->enable_prefetch_faults(parent_gpu);
     }
+    pr_info("replayable_faults->stats.num_read_faults:%llu\n",replayable_faults->stats.num_read_faults);
+    pr_info("replayable_faults->stats.num_prefetch_faults:%llu\n",replayable_faults->stats.num_prefetch_faults);
+    pr_info("replayable_faults->stats.num_atomic_faults:%llu\n",replayable_faults->stats.num_atomic_faults);
+    pr_info("replayable_faults->stats.num_replays:%llu\n",replayable_faults->stats.num_replays);
+
 
     uvm_kvfree(batch_context->fault_cache);
     uvm_kvfree(batch_context->ordered_fault_cache);
@@ -785,6 +793,7 @@ static bool fetch_fault_buffer_try_merge_entry(uvm_fault_buffer_entry_t *current
 {
     uvm_fault_buffer_entry_t *last_tlb_entry = current_tlb->last_fault;
     uvm_fault_buffer_entry_t *last_global_entry = batch_context->last_fault;
+    pr_info("Execute fetch_fault_buffer_try_merge_entry\n");
 
     // Check the last coalesced fault and the coalesced fault that was
     // originated from this uTLB
@@ -855,6 +864,8 @@ static NV_STATUS fetch_fault_buffer_entries(uvm_parent_gpu_t *parent_gpu,
     uvm_replayable_fault_buffer_info_t *replayable_faults = &parent_gpu->fault_buffer_info.replayable;
     const bool in_pascal_cancel_path = (!parent_gpu->fault_cancel_va_supported && fetch_mode == FAULT_FETCH_MODE_ALL);
     const bool may_filter = uvm_perf_fault_coalesce && !in_pascal_cancel_path;
+    pr_info("Execute fetch_fault_buffer_entries\n");
+
 
     UVM_ASSERT(uvm_sem_is_locked(&parent_gpu->isr.replayable_faults.service_lock));
     UVM_ASSERT(parent_gpu->replayable_faults_supported);
@@ -1297,6 +1308,7 @@ static uvm_fault_access_type_t check_fault_access_permissions(uvm_gpu_t *gpu,
                                                               uvm_fault_buffer_entry_t *fault_entry,
                                                               bool allow_migration)
 {
+    pr_info("Execute check_fault_access_permissions\n");
     NV_STATUS perm_status;
     UvmEventFatalReason fatal_reason;
     uvm_fault_cancel_va_mode_t cancel_va_mode;
@@ -3028,6 +3040,8 @@ void uvm_parent_gpu_service_replayable_faults(uvm_parent_gpu_t *parent_gpu)
 
 void uvm_parent_gpu_enable_prefetch_faults(uvm_parent_gpu_t *parent_gpu)
 {
+    pr_info("Execute uvm_parent_gpu_enable_prefetch_faults\n");
+    
     UVM_ASSERT(parent_gpu->isr.replayable_faults.handling);
     UVM_ASSERT(parent_gpu->prefetch_fault_supported);
 

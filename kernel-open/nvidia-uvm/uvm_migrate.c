@@ -62,6 +62,8 @@ static NvU64 g_uvm_perf_migrate_cpu_preunmap_size __read_mostly;
 
 static bool is_migration_single_block(uvm_va_range_managed_t *first_managed_range, NvU64 base, NvU64 length)
 {
+    pr_info("Execute is_migration_single_block\n");
+
     NvU64 end = base + length - 1;
 
     if (end > first_managed_range->va_range.node.end)
@@ -76,6 +78,8 @@ static NV_STATUS block_migrate_map_mapped_pages(uvm_va_block_t *va_block,
                                                 uvm_va_block_region_t region,
                                                 uvm_processor_id_t dest_id)
 {
+    pr_info("Execute block_migrate_map_mapped_pages\n");
+    
     uvm_prot_t prot;
     uvm_page_index_t page_index;
     NV_STATUS status = NV_OK;
@@ -451,6 +455,8 @@ static NV_STATUS uvm_va_range_migrate_multi_block(uvm_va_range_managed_t *manage
                                                   uvm_migrate_mode_t mode,
                                                   uvm_tracker_t *out_tracker)
 {
+    pr_info("Execute uvm_va_range_migrate_multi_block\n");
+
     size_t i;
     const size_t first_block_index = uvm_va_range_block_index(managed_range, start);
     const size_t last_block_index = uvm_va_range_block_index(managed_range, end);
@@ -502,7 +508,7 @@ static NV_STATUS uvm_va_range_migrate(uvm_va_range_managed_t *managed_range,
 {
     NvU64 preunmap_range_start = start;
     uvm_va_policy_t *policy = &managed_range->policy;
-
+    pr_info("Execute uvm_va_range_migrate\n");
     should_do_cpu_preunmap = should_do_cpu_preunmap &&
                              va_range_should_do_cpu_preunmap(policy, managed_range->va_range.va_space);
 
@@ -556,6 +562,7 @@ static NV_STATUS uvm_migrate_ranges(uvm_va_space_t *va_space,
     NvU64 end = base + length - 1;
     NV_STATUS status = NV_OK;
     bool skipped_migrate = false;
+    pr_info("Execute uvm_migrate_ranges\n");
 
     if (!first_managed_range) {
         // For HMM, we iterate over va_blocks since there is no managed_range.
@@ -639,7 +646,7 @@ static NV_STATUS uvm_migrate(uvm_va_space_t *va_space,
     bool do_two_passes;
     bool is_single_block;
     bool should_do_cpu_preunmap;
-
+    pr_info("Execute uvm_migrate\n");
     uvm_assert_rwsem_locked(&va_space->lock);
 
     // If the GPU has its memory disabled, just skip the migration and let
@@ -840,6 +847,7 @@ static NV_STATUS semaphore_release(NvU64 semaphore_address,
 
 NV_STATUS uvm_migrate_init(void)
 {
+    pr_info("Execute uvm_migrate_init\n");
     NV_STATUS status = uvm_migrate_pageable_init();
     if (status != NV_OK)
         return status;
@@ -871,6 +879,7 @@ void uvm_migrate_exit(void)
 
 NV_STATUS uvm_api_migrate(UVM_MIGRATE_PARAMS *params, struct file *filp)
 {
+    pr_info("Execute uvm_api_migrate\n");
     uvm_va_space_t *va_space = uvm_va_space_get(filp);
     uvm_tracker_t tracker = UVM_TRACKER_INIT();
     uvm_tracker_t *tracker_ptr = NULL;
@@ -1083,6 +1092,8 @@ done:
 
 NV_STATUS uvm_api_migrate_range_group(UVM_MIGRATE_RANGE_GROUP_PARAMS *params, struct file *filp)
 {
+    pr_info("Execute uvm_api_migrate_range_group\n");
+
     NV_STATUS status = NV_OK;
     NV_STATUS tracker_status = NV_OK;
     uvm_va_space_t *va_space = uvm_va_space_get(filp);

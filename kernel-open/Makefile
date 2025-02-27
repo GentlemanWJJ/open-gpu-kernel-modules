@@ -13,9 +13,9 @@
 # this Makefile.  For backwards compatibility, when read by Kbuild
 # (recognized by KERNELRELEASE not being empty), do nothing but
 # include the Kbuild file in this directory.
-# 假设Module B使用了Module A中export的函数，因此在Module B的Makefile中加上：
-KBUILD_EXTRA_SYMBOLS += /home/sdu/UMwarpper/test/Module.symvers
-export KBUILD_EXTRA_SYMBOLS
+ KBUILD_EXTRA_SYMBOLS += /home/sdu/UMwarpper/test/Module.symvers
+ export KBUILD_EXTRA_SYMBOLS
+
 ifneq ($(KERNELRELEASE),)
   include $(src)/Kbuild
 else
