@@ -1207,7 +1207,6 @@ static void uvm_chardev_exit(void)
     cdev_del(&g_uvm_cdev);
     unregister_chrdev_region(g_uvm_base_dev, NVIDIA_UVM_NUM_MINOR_DEVICES);
 }
-extern void printk_fault_address(unsigned long long add);
 
 static int uvm_init(void)
 {
@@ -1237,7 +1236,7 @@ static int uvm_init(void)
     }
     
 
-    printk_fault_address(0x12345678);
+    UVM_INFO_PRINT("TEST UVM_INFO_PRINT.\n");
     pr_info("Loaded the UVM driver, major device number %d.\n", MAJOR(g_uvm_base_dev));
 
     if (uvm_enable_builtin_tests)

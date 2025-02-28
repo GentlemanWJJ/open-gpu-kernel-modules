@@ -793,7 +793,7 @@ static bool fetch_fault_buffer_try_merge_entry(uvm_fault_buffer_entry_t *current
 {
     uvm_fault_buffer_entry_t *last_tlb_entry = current_tlb->last_fault;
     uvm_fault_buffer_entry_t *last_global_entry = batch_context->last_fault;
-    pr_info("Execute fetch_fault_buffer_try_merge_entry\n");
+    //pr_info("Execute fetch_fault_buffer_try_merge_entry\n");
 
     // Check the last coalesced fault and the coalesced fault that was
     // originated from this uTLB
@@ -1308,7 +1308,7 @@ static uvm_fault_access_type_t check_fault_access_permissions(uvm_gpu_t *gpu,
                                                               uvm_fault_buffer_entry_t *fault_entry,
                                                               bool allow_migration)
 {
-    pr_info("Execute check_fault_access_permissions\n");
+    // pr_info("Execute check_fault_access_permissions\n");
     NV_STATUS perm_status;
     UvmEventFatalReason fatal_reason;
     uvm_fault_cancel_va_mode_t cancel_va_mode;
