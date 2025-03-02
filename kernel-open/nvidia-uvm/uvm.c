@@ -829,7 +829,6 @@ static struct vm_operations_struct uvm_vm_ops_device_p2p =
 
 static int uvm_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-    pr_info("Execute uvm_mmap\n");
 
     uvm_va_space_t *va_space;
     NV_STATUS status = uvm_global_get_status();

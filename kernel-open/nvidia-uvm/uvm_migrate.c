@@ -847,7 +847,7 @@ static NV_STATUS semaphore_release(NvU64 semaphore_address,
 
 NV_STATUS uvm_migrate_init(void)
 {
-    pr_info("Execute uvm_migrate_init\n");
+
     NV_STATUS status = uvm_migrate_pageable_init();
     if (status != NV_OK)
         return status;
@@ -879,7 +879,6 @@ void uvm_migrate_exit(void)
 
 NV_STATUS uvm_api_migrate(UVM_MIGRATE_PARAMS *params, struct file *filp)
 {
-    pr_info("Execute uvm_api_migrate\n");
     uvm_va_space_t *va_space = uvm_va_space_get(filp);
     uvm_tracker_t tracker = UVM_TRACKER_INIT();
     uvm_tracker_t *tracker_ptr = NULL;

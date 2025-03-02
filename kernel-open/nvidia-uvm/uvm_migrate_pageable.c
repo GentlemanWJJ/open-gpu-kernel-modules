@@ -1106,7 +1106,6 @@ static NV_STATUS migrate_pageable(migrate_vma_state_t *state)
 
 NV_STATUS uvm_migrate_pageable(uvm_migrate_args_t *uvm_migrate_args)
 {
-    pr_info("Execute uvm_migrate_pageable\n");
 
     migrate_vma_state_t *state = NULL;
     NV_STATUS status;
@@ -1143,7 +1142,7 @@ NV_STATUS uvm_migrate_pageable(uvm_migrate_args_t *uvm_migrate_args)
 
 NV_STATUS uvm_migrate_pageable_init(void)
 {
-    pr_info("Execute uvm_migrate_pageable_init\n");
+
 
     g_uvm_migrate_vma_state_cache = NV_KMEM_CACHE_CREATE("migrate_vma_state_t", migrate_vma_state_t);
     if (!g_uvm_migrate_vma_state_cache)

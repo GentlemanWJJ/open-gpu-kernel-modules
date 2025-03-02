@@ -238,10 +238,10 @@ static void fault_buffer_deinit_replayable_faults(uvm_parent_gpu_t *parent_gpu)
         if (parent_gpu->prefetch_fault_supported && !parent_gpu->fault_buffer_info.prefetch_faults_enabled)
             parent_gpu->arch_hal->enable_prefetch_faults(parent_gpu);
     }
-    pr_info("replayable_faults->stats.num_read_faults:%llu\n",replayable_faults->stats.num_read_faults);
-    pr_info("replayable_faults->stats.num_prefetch_faults:%llu\n",replayable_faults->stats.num_prefetch_faults);
-    pr_info("replayable_faults->stats.num_atomic_faults:%llu\n",replayable_faults->stats.num_atomic_faults);
-    pr_info("replayable_faults->stats.num_replays:%llu\n",replayable_faults->stats.num_replays);
+    // pr_info("replayable_faults->stats.num_read_faults:%llu\n",replayable_faults->stats.num_read_faults);
+    // pr_info("replayable_faults->stats.num_prefetch_faults:%llu\n",replayable_faults->stats.num_prefetch_faults);
+    // pr_info("replayable_faults->stats.num_atomic_faults:%llu\n",replayable_faults->stats.num_atomic_faults);
+    // pr_info("replayable_faults->stats.num_replays:%llu\n",replayable_faults->stats.num_replays);
 
 
     uvm_kvfree(batch_context->fault_cache);
@@ -826,7 +826,7 @@ static bool fetch_fault_buffer_try_merge_entry(uvm_fault_buffer_entry_t *current
 
     return false;
 }
-extern void printk_fault_address(unsigned long long add);
+//extern void printk_fault_address(unsigned long long add);
 // Fetch entries from the fault buffer, decode them and store them in the batch
 // context. We implement the fetch modes described above.
 //
@@ -927,7 +927,7 @@ static NV_STATUS fetch_fault_buffer_entries(uvm_parent_gpu_t *parent_gpu,
         // The GPU aligns the fault addresses to 4k, but all of our tracking is
         // done in PAGE_SIZE chunks which might be larger.
         current_entry->fault_address = UVM_PAGE_ALIGN_DOWN(current_entry->fault_address);
-        printk_fault_address(current_entry->fault_address);
+        //printk_fault_address(current_entry->fault_address);
 
         // Make sure that all fields in the entry are properly initialized
         current_entry->is_fatal = (current_entry->fault_type >= UVM_FAULT_TYPE_FATAL);
