@@ -3170,8 +3170,6 @@ void uvm_parent_gpu_service_replayable_faults(uvm_parent_gpu_t *parent_gpu)
 
 void uvm_parent_gpu_enable_prefetch_faults(uvm_parent_gpu_t *parent_gpu)
 {
-    pr_info("Execute uvm_parent_gpu_enable_prefetch_faults\n");
-
     UVM_ASSERT(parent_gpu->isr.replayable_faults.handling);
     UVM_ASSERT(parent_gpu->prefetch_fault_supported);
 

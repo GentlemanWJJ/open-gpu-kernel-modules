@@ -62,7 +62,7 @@ static NvU64 g_uvm_perf_migrate_cpu_preunmap_size __read_mostly;
 
 static bool is_migration_single_block(uvm_va_range_managed_t *first_managed_range, NvU64 base, NvU64 length)
 {
-    pr_info("Execute is_migration_single_block\n");
+
 
     NvU64 end = base + length - 1;
 
@@ -78,7 +78,7 @@ static NV_STATUS block_migrate_map_mapped_pages(uvm_va_block_t *va_block,
                                                 uvm_va_block_region_t region,
                                                 uvm_processor_id_t dest_id)
 {
-    pr_info("Execute block_migrate_map_mapped_pages\n");
+
     
     uvm_prot_t prot;
     uvm_page_index_t page_index;
