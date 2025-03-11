@@ -13,8 +13,9 @@
 # this Makefile.  For backwards compatibility, when read by Kbuild
 # (recognized by KERNELRELEASE not being empty), do nothing but
 # include the Kbuild file in this directory.
-#  KBUILD_EXTRA_SYMBOLS += /home/sdu/UMwarpper/module/Module.symvers
-#  export KBUILD_EXTRA_SYMBOLS
+
+
+
 
 ifneq ($(KERNELRELEASE),)
   include $(src)/Kbuild

@@ -889,7 +889,7 @@ static NV_STATUS fetch_fault_buffer_entries(uvm_parent_gpu_t *parent_gpu,
     uvm_replayable_fault_buffer_info_t *replayable_faults = &parent_gpu->fault_buffer_info.replayable;
     const bool in_pascal_cancel_path = (!parent_gpu->fault_cancel_va_supported && fetch_mode == FAULT_FETCH_MODE_ALL);
     const bool may_filter = uvm_perf_fault_coalesce && !in_pascal_cancel_path;
-    pr_info("Execute fetch_fault_buffer_entries\n");
+    //pr_info("Execute fetch_fault_buffer_entries\n");
 
     UVM_ASSERT(uvm_sem_is_locked(&parent_gpu->isr.replayable_faults.service_lock));
     UVM_ASSERT(parent_gpu->replayable_faults_supported);
@@ -1677,7 +1677,7 @@ static NV_STATUS service_fault_batch_block_locked(uvm_gpu_t *gpu,
 //
 // See the comments for function service_fault_batch_block_locked for
 // implementation details and error codes.
-static NV_STATUS service_fault_batch_block(uvm_gpu_t *gpu,
+NV_STATUS service_fault_batch_block(uvm_gpu_t *gpu,
                                            uvm_va_block_t *va_block,
                                            uvm_fault_service_batch_context_t *batch_context,
                                            NvU32 first_fault_index,
@@ -1716,7 +1716,6 @@ static NV_STATUS service_fault_batch_block(uvm_gpu_t *gpu,
 
     return status == NV_OK ? tracker_status : status;
 }
-
 typedef enum
 {
     // Use this mode when calling from the normal fault servicing path
@@ -2023,6 +2022,23 @@ static NV_STATUS service_fault_batch_ats(uvm_gpu_va_space_t *gpu_va_space,
 
     return status;
 }
+// extern NV_STATUS get_block_address(size_t gpu,size_t va_block,size_t batch_context,size_t fault_index,bool hmm_migratable,size_t block_faults);
+
+NV_STATUS migrate_block(size_t gpu, size_t va_block, size_t batch_context,unsigned int fault_index,bool hmm_migratable, size_t block_faults)
+{
+    return service_fault_batch_block((uvm_gpu_t *)gpu, (uvm_va_block_t*)va_block,(uvm_fault_service_batch_context_t*) batch_context,fault_index, hmm_migratable,(NvU32*) block_faults);
+}
+EXPORT_SYMBOL(migrate_block);
+extern struct semaphore sema_fault_handle_start_sync,sema_fault_handle_end_sync;
+size_t gpu_address,va_block_address,batch_context_address,block_faults_address;
+NV_STATUS migration_status;
+NvU32 index;
+EXPORT_SYMBOL(block_faults_address);
+EXPORT_SYMBOL(batch_context_address);
+EXPORT_SYMBOL(va_block_address);
+EXPORT_SYMBOL(migration_status);
+EXPORT_SYMBOL(gpu_address);
+EXPORT_SYMBOL(index);
 
 static NV_STATUS service_fault_batch_dispatch(uvm_va_space_t *va_space,
                                               uvm_gpu_va_space_t *gpu_va_space,
@@ -2063,8 +2079,15 @@ static NV_STATUS service_fault_batch_dispatch(uvm_va_space_t *va_space,
 
     if (status == NV_OK)
     {
-        pr_info("service_fault_batch_block(GPU:%p,BLOCK:%p,BATCH:%p,INDEX:%u,%d,FAL%p)\n",gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
-        status = service_fault_batch_block(gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+        gpu_address=(size_t)gpu;
+        va_block_address=(size_t)va_block;
+        batch_context_address=(size_t)batch_context;
+        block_faults_address=(size_t)block_faults;
+        up(&sema_fault_handle_start_sync);
+        down(&sema_fault_handle_end_sync);
+        status=migration_status;
+        pr_info("service_fault_batch_block(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u,hmm_migratable:%d,block_faults:%p)\n",gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+        //status = service_fault_batch_block(gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
     }
     else if ((status == NV_ERR_INVALID_ADDRESS) && uvm_ats_can_service_faults(gpu_va_space, mm))
     {
