@@ -1207,14 +1207,12 @@ static void uvm_chardev_exit(void)
     unregister_chrdev_region(g_uvm_base_dev, NVIDIA_UVM_NUM_MINOR_DEVICES);
 }
 
-struct semaphore sema_fault_handle_start_sync,sema_fault_handle_end_sync;
 static int uvm_init(void)
 {
     bool initialized_globals = false;
     bool added_device = false;
     int ret;
-    sema_init(&sema_fault_handle_start_sync,0);
-    sema_init(&sema_fault_handle_end_sync,0);
+
     NV_STATUS status = uvm_global_init();
     if (status != NV_OK) {
         UVM_ERR_PRINT("uvm_global_init() failed: %s\n", nvstatusToString(status));
@@ -1288,8 +1286,7 @@ static void __exit uvm_exit_entry(void)
 {
    UVM_ENTRY_VOID(uvm_exit());
 }
-EXPORT_SYMBOL(sema_fault_handle_start_sync);
-EXPORT_SYMBOL(sema_fault_handle_end_sync);
+
 
 module_init(uvm_init_entry);
 module_exit(uvm_exit_entry);

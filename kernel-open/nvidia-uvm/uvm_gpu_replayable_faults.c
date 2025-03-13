@@ -2024,15 +2024,21 @@ static NV_STATUS service_fault_batch_ats(uvm_gpu_va_space_t *gpu_va_space,
 }
 // extern NV_STATUS get_block_address(size_t gpu,size_t va_block,size_t batch_context,size_t fault_index,bool hmm_migratable,size_t block_faults);
 
-NV_STATUS migrate_block(size_t gpu, size_t va_block, size_t batch_context,unsigned int fault_index,bool hmm_migratable, size_t block_faults)
+unsigned int migrate_block(size_t gpu, size_t va_block, size_t batch_context,unsigned int fault_index,bool hmm_migratable, size_t block_faults)
 {
-    return service_fault_batch_block((uvm_gpu_t *)gpu, (uvm_va_block_t*)va_block,(uvm_fault_service_batch_context_t*) batch_context,fault_index, hmm_migratable,(NvU32*) block_faults);
+    pr_info("hijack function(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u,hmm_migratable:%d,block_faults:%p)\n",gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+
+    return service_fault_batch_block((uvm_gpu_t *)gpu, (uvm_va_block_t*)va_block,(uvm_fault_service_batch_context_t*) batch_context,(NvU32)fault_index, hmm_migratable,(NvU32*) block_faults);
 }
 EXPORT_SYMBOL(migrate_block);
-extern struct semaphore sema_fault_handle_start_sync,sema_fault_handle_end_sync;
+// extern struct semaphore sema_fault_handle_start_sync,sema_fault_handle_end_sync;
+struct semaphore sema_fault_handle_start_sync,sema_fault_handle_end_sync;
+EXPORT_SYMBOL(sema_fault_handle_start_sync);
+EXPORT_SYMBOL(sema_fault_handle_end_sync);
+
 size_t gpu_address,va_block_address,batch_context_address,block_faults_address;
-NV_STATUS migration_status;
-NvU32 index;
+unsigned int migration_status;
+unsigned int index;
 EXPORT_SYMBOL(block_faults_address);
 EXPORT_SYMBOL(batch_context_address);
 EXPORT_SYMBOL(va_block_address);
@@ -2079,14 +2085,16 @@ static NV_STATUS service_fault_batch_dispatch(uvm_va_space_t *va_space,
 
     if (status == NV_OK)
     {
+        pr_info("service_fault_batch_block(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u,hmm_migratable:%d,block_faults:%p)\n",gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
         gpu_address=(size_t)gpu;
         va_block_address=(size_t)va_block;
         batch_context_address=(size_t)batch_context;
         block_faults_address=(size_t)block_faults;
+        index=fault_index;
         up(&sema_fault_handle_start_sync);
         down(&sema_fault_handle_end_sync);
         status=migration_status;
-        pr_info("service_fault_batch_block(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u,hmm_migratable:%d,block_faults:%p)\n",gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+        if(status == NV_OK)pr_info("migrate success\n");
         //status = service_fault_batch_block(gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
     }
     else if ((status == NV_ERR_INVALID_ADDRESS) && uvm_ats_can_service_faults(gpu_va_space, mm))
