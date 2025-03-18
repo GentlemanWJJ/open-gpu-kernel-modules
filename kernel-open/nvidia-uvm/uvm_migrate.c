@@ -562,7 +562,7 @@ static NV_STATUS uvm_migrate_ranges(uvm_va_space_t *va_space,
     NvU64 end = base + length - 1;
     NV_STATUS status = NV_OK;
     bool skipped_migrate = false;
-    pr_info("Execute uvm_migrate_ranges\n");
+
 
     if (!first_managed_range) {
         // For HMM, we iterate over va_blocks since there is no managed_range.

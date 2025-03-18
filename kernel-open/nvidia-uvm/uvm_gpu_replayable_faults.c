@@ -889,7 +889,7 @@ static NV_STATUS fetch_fault_buffer_entries(uvm_parent_gpu_t *parent_gpu,
     uvm_replayable_fault_buffer_info_t *replayable_faults = &parent_gpu->fault_buffer_info.replayable;
     const bool in_pascal_cancel_path = (!parent_gpu->fault_cancel_va_supported && fetch_mode == FAULT_FETCH_MODE_ALL);
     const bool may_filter = uvm_perf_fault_coalesce && !in_pascal_cancel_path;
-    //pr_info("Execute fetch_fault_buffer_entries\n");
+    // pr_info("Execute fetch_fault_buffer_entries\n");
 
     UVM_ASSERT(uvm_sem_is_locked(&parent_gpu->isr.replayable_faults.service_lock));
     UVM_ASSERT(parent_gpu->replayable_faults_supported);
@@ -1462,7 +1462,6 @@ static NV_STATUS service_fault_batch_block_locked(uvm_gpu_t *gpu,
     uvm_assert_mutex_locked(&va_block->lock);
 
     *block_faults = 0;
-
     first_page_index = PAGES_PER_UVM_VA_BLOCK;
     last_page_index = 0;
 
@@ -1678,11 +1677,11 @@ static NV_STATUS service_fault_batch_block_locked(uvm_gpu_t *gpu,
 // See the comments for function service_fault_batch_block_locked for
 // implementation details and error codes.
 NV_STATUS service_fault_batch_block(uvm_gpu_t *gpu,
-                                           uvm_va_block_t *va_block,
-                                           uvm_fault_service_batch_context_t *batch_context,
-                                           NvU32 first_fault_index,
-                                           const bool hmm_migratable,
-                                           NvU32 *block_faults)
+                                    uvm_va_block_t *va_block,
+                                    uvm_fault_service_batch_context_t *batch_context,
+                                    NvU32 first_fault_index,
+                                    const bool hmm_migratable,
+                                    NvU32 *block_faults)
 {
     NV_STATUS status;
     uvm_va_block_retry_t va_block_retry;
@@ -2022,21 +2021,219 @@ static NV_STATUS service_fault_batch_ats(uvm_gpu_va_space_t *gpu_va_space,
 
     return status;
 }
-// extern NV_STATUS get_block_address(size_t gpu,size_t va_block,size_t batch_context,size_t fault_index,bool hmm_migratable,size_t block_faults);
 
-unsigned int migrate_block(size_t gpu, size_t va_block, size_t batch_context,unsigned int fault_index,bool hmm_migratable, size_t block_faults)
+static NV_STATUS my_prefetch_va_block_locked(uvm_gpu_t *gpu,
+                                             uvm_va_block_t *va_block,
+                                             uvm_va_block_retry_t *va_block_retry,
+                                             uvm_fault_service_batch_context_t *batch_context,
+                                             const bool hmm_migratable
+                                             )
 {
-    pr_info("hijack function(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u,hmm_migratable:%d,block_faults:%p)\n",gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+    NV_STATUS status = NV_OK;
+    NvU64 address;
+    uvm_page_index_t first_page_index;
+    uvm_page_index_t last_page_index;
+    NvU32 page_fault_count = 0;
+    uvm_range_group_range_iter_t iter;
+    uvm_replayable_fault_buffer_info_t *replayable_faults = &gpu->parent->fault_buffer_info.replayable;
+    uvm_service_block_context_t *block_context = &replayable_faults->block_service_context;
+    uvm_va_space_t *va_space = uvm_va_block_get_va_space(va_block);
+    const uvm_va_policy_t *policy;
+    NvU64 end;
+    // pr_info("execute my_prefetch_va_block_locked");
 
-    return service_fault_batch_block((uvm_gpu_t *)gpu, (uvm_va_block_t*)va_block,(uvm_fault_service_batch_context_t*) batch_context,(NvU32)fault_index, hmm_migratable,(NvU32*) block_faults);
+    // Check that all uvm_fault_access_type_t values can fit into an NvU8
+    BUILD_BUG_ON(UVM_FAULT_ACCESS_TYPE_COUNT > (int)(NvU8)-1);
+
+    uvm_assert_mutex_locked(&va_block->lock);
+
+
+    first_page_index = PAGES_PER_UVM_VA_BLOCK;
+    last_page_index = 0;
+
+    // Initialize fault service block context
+    if(block_context==NULL)
+    {
+        pr_info("block_context is null");
+        return 0;
+    }
+    uvm_processor_mask_zero(&block_context->resident_processors);
+    block_context->thrashing_pin_count = 0;
+    block_context->read_duplicate_count = 0;
+
+    uvm_range_group_range_migratability_iter_first(va_space, va_block->start, va_block->end, &iter);
+
+    if (uvm_va_block_is_hmm(va_block))
+    {
+        if(block_context->block_context->hmm.vma==NULL)
+        {
+            pr_info("vma is null");
+            return 0;}
+        policy = uvm_hmm_find_policy_end(va_block,
+                                         block_context->block_context->hmm.vma,
+                                         va_block->start,
+                                         &end);
+    }
+    else
+    {
+        policy = &va_block->managed_range->policy;
+        end = va_block->end;
+    }
+    // pr_info("checkpoint 1");
+
+    // Scan the sorted array and notify the fault event for all fault entries
+    // in the block
+    for (address = va_block->start; address <= va_block->end; address += 1 << 12)
+    {
+        bool read_duplicate;
+        uvm_processor_id_t new_residency;
+        uvm_perf_thrashing_hint_t thrashing_hint;
+        uvm_page_index_t page_index = uvm_va_block_cpu_page_index(va_block, address);
+        bool is_duplicate = false;
+        uvm_fault_access_type_t service_access_type = 1;
+        NvU32 service_access_type_mask;
+
+        // Ensure that the migratability iterator covers the current fault
+        // address
+        while (iter.end < address)
+            uvm_range_group_range_migratability_iter_next(va_space, &iter, va_block->end);
+
+        UVM_ASSERT(iter.start <= address && iter.end >= address);
+
+        service_access_type_mask = uvm_fault_access_type_mask_bit(service_access_type);
+
+        // If the GPU already has the necessary access permission, the fault
+        // does not need to be serviced
+        if (uvm_va_block_page_is_gpu_authorized(va_block,
+                                                page_index,
+                                                gpu->id,
+                                                uvm_fault_access_type_to_prot(service_access_type)))
+            continue;
+
+        thrashing_hint = uvm_perf_thrashing_get_hint(va_block,
+                                                     block_context->block_context,
+                                                     address,
+                                                     gpu->id);
+
+        if (thrashing_hint.type == UVM_PERF_THRASHING_HINT_TYPE_PIN)
+        {
+            if (block_context->thrashing_pin_count++ == 0)
+                uvm_page_mask_zero(&block_context->thrashing_pin_mask);
+
+            uvm_page_mask_set(&block_context->thrashing_pin_mask, page_index);
+        }
+
+        // Compute new residency and update the masks
+        new_residency = uvm_va_block_select_residency(va_block,
+                                                      block_context->block_context,
+                                                      page_index,
+                                                      gpu->id,
+                                                      service_access_type_mask,
+                                                      policy,
+                                                      &thrashing_hint,
+                                                      UVM_SERVICE_OPERATION_REPLAYABLE_FAULTS,
+                                                      hmm_migratable,
+                                                      &read_duplicate);
+
+        if (!uvm_processor_mask_test_and_set(&block_context->resident_processors, new_residency))
+            uvm_page_mask_zero(&block_context->per_processor_masks[uvm_id_value(new_residency)].new_residency);
+
+        uvm_page_mask_set(&block_context->per_processor_masks[uvm_id_value(new_residency)].new_residency, page_index);
+
+        if (read_duplicate)
+        {
+            if (block_context->read_duplicate_count++ == 0)
+                uvm_page_mask_zero(&block_context->read_duplicate_mask);
+
+            uvm_page_mask_set(&block_context->read_duplicate_mask, page_index);
+        }
+
+        ++page_fault_count;
+
+        block_context->access_type[page_index] = service_access_type;
+
+        if (page_index < first_page_index)
+            first_page_index = page_index;
+        if (page_index > last_page_index)
+            last_page_index = page_index;
+    }
+    // pr_info("checkpoint 2");
+
+    // Apply the changes computed in the fault service block context, if there
+    // are pages to be serviced
+    if (page_fault_count > 0)
+    {
+        block_context->region = uvm_va_block_region(first_page_index, last_page_index + 1);
+        status = uvm_va_block_service_locked(gpu->id, va_block, va_block_retry, block_context);
+    }
+    if (status == NV_OK)pr_info("prefetch ok");
+    // pr_info("checkpoint 3");
+
+    ++block_context->num_retries;
+
+    if (status == NV_OK && batch_context->fatal_va_space)
+        status = uvm_va_block_set_cancel(va_block, block_context->block_context, gpu);
+
+    return status;
 }
+
+NV_STATUS my_prefetch_va_block(uvm_gpu_t *gpu,
+                               uvm_va_block_t *va_block,
+                               uvm_fault_service_batch_context_t *batch_context,
+                               const bool hmm_migratable
+                               )
+{
+    NV_STATUS status;
+    uvm_va_block_retry_t va_block_retry;
+    NV_STATUS tracker_status;
+    uvm_replayable_fault_buffer_info_t *replayable_faults = &gpu->parent->fault_buffer_info.replayable;
+    uvm_service_block_context_t *fault_block_context = &replayable_faults->block_service_context;
+
+    fault_block_context->operation = UVM_SERVICE_OPERATION_REPLAYABLE_FAULTS;
+    fault_block_context->num_retries = 0;
+
+    if (uvm_va_block_is_hmm(va_block))
+        uvm_hmm_migrate_begin_wait(va_block);
+
+    uvm_mutex_lock(&va_block->lock);
+    status = UVM_VA_BLOCK_RETRY_LOCKED(va_block, &va_block_retry,
+                                       my_prefetch_va_block_locked(gpu,
+                                                                   va_block,
+                                                                   &va_block_retry,
+                                                                   batch_context,
+                                                                   hmm_migratable
+                                                                   ));
+
+    tracker_status = uvm_tracker_add_tracker_safe(&batch_context->tracker, &va_block->tracker);
+
+    uvm_mutex_unlock(&va_block->lock);
+
+    if (uvm_va_block_is_hmm(va_block))
+        uvm_hmm_migrate_finish(va_block);
+
+    return status == NV_OK ? tracker_status : status;
+}
+unsigned int migrate_block(size_t gpu, size_t va_block, size_t batch_context, unsigned int fault_index, bool hmm_migratable, size_t block_faults)
+{
+    // pr_info("execute migrate_block(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u)\n", gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+
+    return service_fault_batch_block((uvm_gpu_t *)gpu, (uvm_va_block_t *)va_block, (uvm_fault_service_batch_context_t *)batch_context, (NvU32)fault_index, hmm_migratable, (NvU32 *)block_faults);
+}
+unsigned int prefetch_block(size_t gpu, size_t va_block, size_t batch_context, unsigned int fault_index, bool hmm_migratable)
+{
+    // pr_info("execute prefetch_block(gpu:%p,va_block:%p,batch_context:%p)\n", gpu, va_block, batch_context, hmm_migratable);
+    return my_prefetch_va_block((uvm_gpu_t *)gpu, (uvm_va_block_t *)va_block, (uvm_fault_service_batch_context_t *)batch_context, hmm_migratable);
+}
+
 EXPORT_SYMBOL(migrate_block);
+EXPORT_SYMBOL(prefetch_block);
+
 // extern struct semaphore sema_fault_handle_start_sync,sema_fault_handle_end_sync;
-struct semaphore sema_fault_handle_start_sync,sema_fault_handle_end_sync;
+struct semaphore sema_fault_handle_start_sync, sema_fault_handle_end_sync;
 EXPORT_SYMBOL(sema_fault_handle_start_sync);
 EXPORT_SYMBOL(sema_fault_handle_end_sync);
 
-size_t gpu_address,va_block_address,batch_context_address,block_faults_address;
+size_t gpu_address, va_block_address, batch_context_address, block_faults_address;
 unsigned int migration_status;
 unsigned int index;
 EXPORT_SYMBOL(block_faults_address);
@@ -2085,17 +2282,20 @@ static NV_STATUS service_fault_batch_dispatch(uvm_va_space_t *va_space,
 
     if (status == NV_OK)
     {
-        pr_info("service_fault_batch_block(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u,hmm_migratable:%d,block_faults:%p)\n",gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
-        gpu_address=(size_t)gpu;
-        va_block_address=(size_t)va_block;
-        batch_context_address=(size_t)batch_context;
-        block_faults_address=(size_t)block_faults;
-        index=fault_index;
+
+        // pr_info("service_fault_batch_block(gpu:%p,va_block:%p,batch_context:%p,fault_index:%u,hmm_migratable:%d,block_faults:%p)\n", gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+        gpu_address = (size_t)gpu;
+        va_block_address = (size_t)va_block;
+        batch_context_address = (size_t)batch_context;
+        block_faults_address = (size_t)block_faults;
+        index = fault_index;
         up(&sema_fault_handle_start_sync);
         down(&sema_fault_handle_end_sync);
-        status=migration_status;
-        if(status == NV_OK)pr_info("migrate success\n");
-        //status = service_fault_batch_block(gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
+        status = migration_status;
+        // if (status == NV_OK)
+        //     pr_info("migrate success\n");
+
+        // status = service_fault_batch_block(gpu, va_block, batch_context, fault_index, hmm_migratable, block_faults);
     }
     else if ((status == NV_ERR_INVALID_ADDRESS) && uvm_ats_can_service_faults(gpu_va_space, mm))
     {
